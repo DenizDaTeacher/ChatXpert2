@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat: Deeskalation Vorbestelleraktion</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      display: flex;
+    }
+    #chat {
+      width: 50%;
+      padding: 20px;
+      height: 100vh;
+      overflow-y: auto;
+      box-sizing: border-box;
+    }
+    #agent-input {
+      width: 50%;
+      padding: 20px;
+      background: #ffffff;
+      border-left: 2px solid #ccc;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+    .message {
+      background: #fff;
+      border-radius: 20px;
+      padding: 10px 15px;
+      margin: 10px 0;
+      max-width: 70%;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease-out;
+    }
+    .from-bot {
+      align-self: flex-end;
+      background: #d2ffd2;
+    }
+    .from-user {
+      align-self: flex-start;
+      background: #e0e0ff;
+    }
+    .visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+    }
+    .agent-reply {
+      background: #f2f2f2;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 10px;
+      border-left: 4px solid #4caf50;
+    }
+    #pdf-section {
+      margin-top: 30px;
+    }
+    button {
+      padding: 10px 20px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    .typing {
+      background: #e0e0ff;
+      border-radius: 20px;
+      padding: 10px 15px;
+      margin: 10px 0;
+      max-width: 50%;
+      font-style: italic;
+      color: #666;
+      opacity: 0.6;
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+    /* Hinweiscontainer Styling */
+    #hinweis-container {
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      max-width: 90%;
+      margin: 30px auto;
+      font-size: 1.1em;
+      line-height: 1.4;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    #los-gehts-btn {
+      margin-top: 20px;
+      display: none; /* versteckt bis 10 Sekunden vorbei */
+    }
+  </style>
+</head>
+<body>
+  <div id="chat">
+    <!-- Hinweis-Container am Anfang -->
+    <div id="hinweis-container">
+      <p><strong>Hinweis zum Ablauf:</strong><br>
+      In Kürze startet hier ein simulierter Kundenchat.</p>
+      <p><strong>Deine Aufgabe:</strong> Antworte auf die Kundenfragen so, wie du es im echten Gespräch tun würdest. Nutze alle dir vertrauten Tools wie die MediaMarkt-Website, um nötige Informationen zu sammeln. <br>
+      Nach deiner Antwort zeigen wir dir eine Musterlösung zur Orientierung.</p>
+      <p>Am Ende kannst du deinen kompletten Chatverlauf als PDF speichern und im SkillHub hochladen.</p>
+      <p><strong>Viel Erfolg und viel Spaß!</strong></p>
+      <p>Gleich geht's los...</p>
+      <button id="los-gehts-btn">Los geht's</button>
+    </div>
+
+    <!-- Der normale Chat-Container bleibt leer und versteckt -->
+    <div id="chat-container" style="display:none; flex-direction: column;"></div>
+  </div>
+  <div id="agent-input" style="display:none;">
+    <h3>Bitte gib deine Antwort auf die letzte Kundenfrage ein:</h3>
+    <div id="agent-replies"></div>
+    <textarea id="agent-text" rows="4" style="width: 100%; margin-top: 50px;" placeholder="Deine Antwort..."></textarea>
+    <button onclick="submitAgentReply()">Antwort speichern & Musterlösung anzeigen</button>
+ <div id="pdf-section" style="display: none;">
+  <p>✅ Der Chat ist beendet. Du kannst nun deinen Verlauf speichern und im SkillHub hochladen.</p>
+  <button onclick="downloadPDF()">📄 Chatverlauf als PDF speichern</button>
+
+  <p style="margin-top: 15px;">
+    🔁 Gehe jetzt zurück in den Moodle-Kurs und lade deine PDF-Datei im Abschnitt <strong>Kundenchat 1</strong> unter der Aufgabe hoch.
+  </p>
+  <button onclick="window.location.href='https://skillhub.moodlecloud.com/mod/assign/view.php?id=105'" style="margin-top: 10px;">
+    📤 PDF im Moodle-Kurs hochladen
+  </button>
+</div>
+
+  </div>
+
+  <script src="https://raw.githack.com/eKoopmans/html2pdf/master/dist/html2pdf.bundle.js"></script>
+  <script>
+    const messages = [
+      { text: "Was soll das bitte?! Ich habe die neue Nintendo Switch bei Ihrer Vorbestellaktion bestellt – das war vor über drei Wochen und bis heute ist NICHTS angekommen! Heute war das Lieferdatum, aber ich habe weder eine Versandbestätigung noch eine Sendungsverfolgung!", from: "user" },
+      { text: "Es tut mir leid, dass Sie bisher keine Rückmeldung erhalten haben. Ich verstehe Ihren Ärger. Das sollte natürlich nicht passieren. Lassen Sie mich kurz in Ihr Kundenkonto schauen, um die Bestellung zu prüfen. Einen kleinen Moment bitte.", from: "bot" },
+      { text: "Das ist echt schwach. Wenn man schon mit einem festen Lieferdatum wirbt, dann erwarte ich auch, dass das eingehalten wird!", from: "user" },
+      { text: "Sie haben völlig recht. Gerade bei einer Vorbestellung erwarten unsere Kunden zu Recht eine klare Kommunikation. Ich sehe gerade, dass Ihre Bestellung am 25. Mai eingegangen ist. Laut System ist das Produkt tatsächlich noch nicht versandt worden, was sehr ärgerlich ist. Ich prüfe sofort, woran das liegt.", from: "bot" },
+      { text: "Ich hätte sie heute verschenken wollen. Toll, jetzt steh ich ohne Geschenk da!", from: "user" },
+      { text: "Das ist wirklich enttäuschend und es tut mir aufrichtig leid, dass Sie dadurch in eine unangenehme Situation geraten. Ich verstehe, wie frustrierend das ist. Ich versichere Ihnen, dass wir das klären und gemeinsam nach einer Lösung suchen.", from: "bot" },
+      { text: "Na dann machen Sie mal!", from: "user" },
+      { text: "Danke für Ihre Geduld. Laut interner Info gibt es aktuell Lieferverzögerungen bei genau diesem Modell, da der Hersteller die Stückzahlen kurzfristig reduziert hat. Leider wurden wir selbst erst sehr spät darüber informiert. Deshalb kam keine automatische Versandbenachrichtigung.", from: "bot" },
+      { text: "Und ich erfahre das nur, weil ich mich melde?!", from: "user" },
+      { text: "Das hätte aktiv kommuniziert werden müssen, das sehe ich genauso. Ich leite Ihr Feedback direkt an die zuständige Stelle weiter. Ich kann heute für Sie eine Lieferterminanfrage stellen direkt beim Hersteller und würde Sie schnellstmöglich über das Ergebnis informieren.  Wäre das für heute eine Option für Sie? ", from: "bot" },
+      { text: "Wie lange würde es denn noch dauern?", from: "user" },
+      { text: "Ich kann Ihnen natürlich keine hundertprozentige Garantie geben, aber innerhalb 3 Werktage bekommen Sie die Antwort des Herstellers von uns weitergeleitet.", from: "bot" },
+      { text: "Na gut. Dann warte ich noch bis Mittwoch. Aber wenn ich dann wieder nichts höre, melde ich mich!", from: "user" },
+      { text: "Das ist absolut verständlich. Ich notiere das in Ihrem Kundenkonto und sende Ihnen zusätzlich eine persönliche E-Mail mit der Bestätigung. Nochmals Entschuldigung für den schlechten Ablauf und vielen Dank, dass Sie trotzdem so sachlich geblieben sind. Ich hoffe, Ihr Anliegen ist bald zu Ihrer Zufriedenheit geklärt.", from: "bot" }
+    ];
+
+    const chatContainer = document.getElementById("chat-container");
+    const agentReplies = document.getElementById("agent-replies");
+    const agentText = document.getElementById("agent-text");
+    const pdfSection = document.getElementById("pdf-section");
+    const hinweisContainer = document.getElementById("hinweis-container");
+    const losGehtsBtn = document.getElementById("los-gehts-btn");
+    const agentInputDiv = document.getElementById("agent-input");
+
+    let currentIndex = 0;
+    let chatStarted = false;
+
+    // Button erst nach 10 Sekunden anzeigen
+    setTimeout(() => {
+      losGehtsBtn.style.display = 'inline-block';
+    }, 10000);
+
+    losGehtsBtn.addEventListener('click', () => {
+      // Hinweistext und Button ausblenden
+      hinweisContainer.style.display = 'none';
+
+      // Chat und Eingabebereich anzeigen
+      chatContainer.style.display = 'flex';
+      agentInputDiv.style.display = 'block';
+
+      chatStarted = true;
+      showNextMessage();
+    });
+
+    function showNextMessage() {
+      if (!chatStarted) return; // Start nur nach Klick
+
+      if (currentIndex >= messages.length) {
+        pdfSection.style.display = 'block';
+        agentText.disabled = true;
+        document.querySelector('button[onclick="submitAgentReply()"]')?.setAttribute('disabled', true);
+        return;
+      }
+
+      const msg = messages[currentIndex];
+
+      if (msg.from === "bot") {
+        // Warte auf Agentenantwort
+        return;
+      }
+
+      // Benutzer-Nachricht simulieren mit "Tippt..." Anzeige
+      const typingDiv = document.createElement("div");
+      typingDiv.className = "typing";
+      typingDiv.textContent = "Kunde tippt eine Nachricht ein...";
+      chatContainer.appendChild(typingDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      setTimeout(() => {
+        typingDiv.remove();
+
+        const div = document.createElement("div");
+        div.className = `message from-${msg.from} visible`;
+        div.textContent = msg.text;
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        currentIndex++;
+        if (messages[currentIndex] && messages[currentIndex].from === "bot") {
+          // warte auf Agentenantwort
+        } else {
+          setTimeout(showNextMessage, 3000);
+        }
+      }, 5000);
+    }
+
+    function submitAgentReply() {
+      const reply = agentText.value.trim();
+      if (!reply) return;
+
+      const div = document.createElement("div");
+      div.className = "agent-reply";
+      div.textContent = reply;
+      agentReplies.appendChild(div);
+      agentText.value = "";
+
+      const botMessage = messages[currentIndex];
+      const botDiv = document.createElement("div");
+      botDiv.className = "message from-bot visible";
+      botDiv.textContent = botMessage.text;
+      chatContainer.appendChild(botDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      currentIndex++;
+      setTimeout(showNextMessage, 3000);
+    }
+
+    function downloadPDF() {
+      const element = document.body;
+      const opt = {
+        margin:       0.5,
+        filename:     'chatverlauf.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+  </script>
+</body>
+</html>
